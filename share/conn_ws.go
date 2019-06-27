@@ -17,8 +17,32 @@ func NewWebSocketConn(websocketConn *websocket.Conn) net.Conn {
 	c := wsConn{
 		Conn: websocketConn,
 	}
+	keepAlive(c, 60000);
 	return &c
 }
+
+func keepAlive(c *websocket.Conn, timeout time.Duration) {
+    lastResponse := time.Now()
+    c.SetPongHandler(func(msg string) error {
+       lastResponse = time.Now()
+       return nil
+   })
+
+   go func() {
+     for {
+        err := c.WriteMessage(websocket.PingMessage, []byte("keepalive"))
+        if err != nil {
+            return 
+        }   
+        time.Sleep(timeout/2)
+        if(time.Now().Sub(lastResponse) > timeout) {
+            c.Close()
+            return
+        }
+    }
+  }()
+}
+
 
 //Read is not threadsafe though thats okay since there
 //should never be more than one reader
